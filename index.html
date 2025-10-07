@@ -1021,7 +1021,7 @@
                 answers: gameState.answers
             };
             
-            console.log('發送的資料:', JSON.stringify(resultData, null, 2)); // 格式化日誌以便閱讀
+            console.log('發送的資料:', JSON.stringify(resultData, null, 2));
             
             // 發送資料到 Apps Script
             fetch('https://script.google.com/macros/s/AKfycbx-8zPxsxHh5-GMKzS9TAnj4Lv424zGULTIx0rJveMHO2Fqth_pSpVCl5GgOyEg5gEt/exec', {
@@ -1030,8 +1030,8 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(resultData),
-                mode: 'cors', // 明確指定 CORS 模式
-                credentials: 'omit' // 不包含認證資訊
+                mode: 'cors',
+                credentials: 'omit'
             })
             .then(response => {
                 console.log('伺服器回應狀態:', response.status, response.statusText);
@@ -1050,7 +1050,7 @@
             })
             .catch(error => {
                 console.error('同步錯誤:', error);
-                alert(`發生錯誤，無法同步到試算表：${error.message}\n請檢查控制台日誌以獲取更多資訊。`);
+                alert(`發生錯誤，無法同步到試算表：${error.message}\n請檢查控制台日誌或聯繫管理員。`);
             });
         }
 
