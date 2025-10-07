@@ -1,0 +1,1077 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蹦火仔文化企劃挑戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        
+        .ocean-bg {
+            background: linear-gradient(180deg, #1e40af 0%, #3b82f6 50%, #0ea5e9 100%);
+            position: relative;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        .fire-glow {
+            box-shadow: 0 0 20px rgba(251, 146, 60, 0.6);
+            animation: fireFlicker 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes fireFlicker {
+            0% { box-shadow: 0 0 20px rgba(251, 146, 60, 0.6); }
+            100% { box-shadow: 0 0 30px rgba(251, 146, 60, 0.8); }
+        }
+        
+        .wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 200%;
+            height: 100px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: wave 3s ease-in-out infinite;
+        }
+        
+        @keyframes wave {
+            0%, 100% { transform: translateX(-50%) translateY(0px); }
+            50% { transform: translateX(-50%) translateY(-10px); }
+        }
+        
+        .drag-card {
+            transition: all 0.3s ease;
+            cursor: grab;
+        }
+        
+        .drag-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .drag-card.dragging {
+            transform: rotate(5deg) scale(1.05);
+            cursor: grabbing;
+            z-index: 1000;
+        }
+        
+        .drop-zone {
+            transition: all 0.3s ease;
+            border: 2px dashed #cbd5e1;
+        }
+        
+        .drop-zone.drag-over {
+            border-color: #f97316;
+            background-color: rgba(249, 115, 22, 0.1);
+            transform: scale(1.02);
+        }
+        
+        .drop-zone.correct {
+            border-color: #10b981;
+            background-color: rgba(16, 185, 129, 0.1);
+        }
+        
+        .drop-zone.incorrect {
+            border-color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+        
+        .fish {
+            position: absolute;
+            font-size: 24px;
+            animation: swim 4s linear infinite;
+        }
+        
+        @keyframes swim {
+            0% { transform: translateX(-100px); }
+            100% { transform: translateX(calc(100vw + 100px)); }
+        }
+        
+        .boat {
+            position: absolute;
+            top: 20%;
+            right: 10%;
+            font-size: 48px;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .success-animation {
+            animation: successPulse 0.6s ease-in-out;
+        }
+        
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .score-counter {
+            animation: scoreUp 0.5s ease-out;
+        }
+        
+        @keyframes scoreUp {
+            0% { transform: translateY(20px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        
+        .score-popup {
+            position: fixed;
+            z-index: 9999;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            animation: scorePopup 2s ease-out forwards;
+        }
+        
+        @keyframes scorePopup {
+            0% { 
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: translateY(-30px) scale(1.2);
+                opacity: 1;
+            }
+            100% { 
+                transform: translateY(-60px) scale(1);
+                opacity: 0;
+            }
+        }
+        
+        .tourist-animation {
+            position: fixed;
+            top: 20%;
+            right: -100px;
+            font-size: 32px;
+            z-index: 1000;
+            animation: touristWalk 3s ease-in-out forwards;
+        }
+        
+        @keyframes touristWalk {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(-200px); }
+            100% { transform: translateX(-400px); opacity: 0; }
+        }
+        
+        .exodus-animation {
+            position: fixed;
+            top: 30%;
+            left: -100px;
+            font-size: 32px;
+            z-index: 1000;
+            animation: exodusWalk 3s ease-in-out forwards;
+        }
+        
+        @keyframes exodusWalk {
+            0% { transform: translateX(0); opacity: 1; }
+            50% { transform: translateX(200px); opacity: 0.7; }
+            100% { transform: translateX(400px); opacity: 0; }
+        }
+        
+        .local-animation {
+            position: fixed;
+            top: 20%;
+            right: 20px;
+            width: 300px;
+            height: 150px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: slideInOut 2s ease-in-out forwards;
+            pointer-events: none;
+        }
+        
+        .local-animation.success {
+            background: linear-gradient(45deg, rgba(16, 185, 129, 0.95), rgba(34, 197, 94, 0.95));
+        }
+        
+        .local-animation.failure {
+            background: linear-gradient(45deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95));
+        }
+        
+        @keyframes slideInOut {
+            0% { opacity: 0; transform: translateX(100%); }
+            15% { opacity: 1; transform: translateX(0); }
+            85% { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(100%); }
+        }
+        
+        .animation-text {
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .animation-icons {
+            font-size: 32px;
+            margin-bottom: 8px;
+            animation: bounce 1s ease-in-out infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .progress-container {
+            background: linear-gradient(90deg, #ef4444 0%, #f97316 50%, #10b981 100%);
+            border-radius: 20px;
+            padding: 4px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .progress-bar {
+            background: white;
+            border-radius: 16px;
+            height: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 16px;
+            transition: all 0.8s ease-out;
+            position: relative;
+            background: linear-gradient(90deg, #ef4444 0%, #f97316 30%, #eab308 60%, #10b981 100%);
+        }
+        
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s ease-in-out infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .progress-status {
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 8px;
+            text-align: center;
+        }
+        
+        .status-critical { color: #ef4444; }
+        .status-danger { color: #f97316; }
+        .status-warning { color: #eab308; }
+        .status-good { color: #10b981; }
+        .status-excellent { color: #059669; }
+        
+        .celebration-fireworks {
+            position: fixed;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 48px;
+            z-index: 1000;
+            animation: fireworks 2s ease-out forwards;
+        }
+        
+        @keyframes fireworks {
+            0% { 
+                transform: translateX(-50%) scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: translateX(-50%) scale(1.5);
+                opacity: 1;
+            }
+            100% { 
+                transform: translateX(-50%) scale(1);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body class="ocean-bg">
+    <!-- 背景裝飾 -->
+    <div class="wave"></div>
+    <div class="boat">🚢</div>
+    <div class="fish" style="top: 60%; animation-delay: 0s;">🐟</div>
+    <div class="fish" style="top: 70%; animation-delay: 2s;">🐠</div>
+    <div class="fish" style="top: 50%; animation-delay: 4s;">🐡</div>
+
+    <!-- 遊戲容器 -->
+    <div class="container mx-auto px-4 py-8 relative z-10">
+        <!-- 遊戲標題 -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-white mb-4 fire-glow">🔥 蹦火仔文化企劃挑戰 🔥</h1>
+            <p class="text-xl text-blue-100">運用企劃理論設計金山蹦火仔文化活動</p>
+        </div>
+
+        <!-- 開始畫面 -->
+        <div id="startScreen" class="max-w-3xl mx-auto bg-white/90 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
+            <div class="text-center">
+                <!-- 遊戲主視覺 -->
+                <div class="mb-6">
+                    <div class="text-8xl mb-4">🔥🚢🌊</div>
+                    <h1 class="text-4xl font-bold text-red-600 mb-2 fire-glow">蹦火仔漁村文化</h1>
+                    <h2 class="text-3xl font-bold text-orange-600 mb-4">拯救大作戰</h2>
+                </div>
+                
+                <!-- 故事背景 -->
+                <div class="bg-blue-50 rounded-xl p-6 mb-6 text-left">
+                    <h3 class="text-xl font-bold text-blue-800 mb-3 text-center">🏘️ 漁村危機</h3>
+                    <div class="space-y-2 text-gray-700">
+                        <p>📉 <strong>人口外流：</strong>年輕人離開漁村，傳統技藝面臨失傳</p>
+                        <p>🔥 <strong>文化瀕危：</strong>百年蹦火仔捕魚技術後繼無人</p>
+                        <p>💼 <strong>經濟困境：</strong>漁業收入下降，村民生活困難</p>
+                        <p>⏰ <strong>時間緊迫：</strong>文化保存刻不容緩！</p>
+                    </div>
+                </div>
+                
+                <!-- 任務說明 -->
+                <div class="bg-green-50 rounded-xl p-6 mb-6">
+                    <h3 class="text-xl font-bold text-green-800 mb-3">🎯 您的任務</h3>
+                    <p class="text-gray-700 mb-4">身為地方產業企劃師，運用專業的企劃理論：</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div class="bg-white rounded-lg p-3">
+                            <div class="text-2xl mb-2">📊</div>
+                            <strong>SWOT分析</strong><br>
+                            評估內外部環境
+                        </div>
+                        <div class="bg-white rounded-lg p-3">
+                            <div class="text-2xl mb-2">🎯</div>
+                            <strong>STP策略</strong><br>
+                            精準市場定位
+                        </div>
+                        <div class="bg-white rounded-lg p-3">
+                            <div class="text-2xl mb-2">🛍️</div>
+                            <strong>4P行銷</strong><br>
+                            完整行銷組合
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 成功願景 -->
+                <div class="bg-yellow-50 rounded-xl p-4 mb-6">
+                    <p class="text-lg font-semibold text-yellow-800">
+                        🌟 成功振興漁村，讓蹦火仔文化重現光芒！
+                    </p>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">請輸入您的企劃師姓名：</label>
+                    <input type="text" id="playerName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" placeholder="輸入您的姓名">
+                </div>
+                
+                <button onclick="startGame()" class="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-4 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg">
+                    🚀 開始拯救任務
+                </button>
+            </div>
+        </div>
+
+        <!-- 遊戲主畫面 -->
+        <div id="gameScreen" class="hidden">
+            <!-- 遊戲狀態列 -->
+            <div class="bg-white/90 backdrop-blur-sm rounded-xl p-4 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center space-x-4">
+                        <span class="text-lg font-semibold">關卡: <span id="currentLevel" class="text-orange-600">1</span>/5</span>
+                        <span class="text-lg font-semibold">分數: <span id="currentScore" class="text-blue-600">0</span></span>
+                    </div>
+                    <div class="text-lg font-semibold">
+                        玩家: <span id="displayName" class="text-green-600"></span>
+                    </div>
+                </div>
+                
+                <!-- 振興漁村進度條 -->
+                <div class="w-full">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-700">🏘️ 漁村振興進度</span>
+                        <span class="text-sm font-medium text-gray-700" id="progressPercentage">0%</span>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div id="progressStatus" class="progress-status status-critical">🚨 文化瀕臨消失</div>
+                </div>
+            </div>
+
+            <!-- 題目區域 -->
+            <div id="questionArea" class="bg-white/90 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-xl">
+                <h3 id="questionTitle" class="text-xl font-bold text-gray-800 mb-4"></h3>
+                <p id="questionDescription" class="text-gray-600 mb-6"></p>
+                
+                <!-- 拖曳卡片區域 -->
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold text-gray-700 mb-3">請將以下要素拖曳到正確的分類中：</h4>
+                    <div id="dragCards" class="flex flex-wrap gap-3 justify-center">
+                        <!-- 動態生成拖曳卡片 -->
+                    </div>
+                </div>
+
+                <!-- 放置區域 -->
+                <div id="dropZones" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- 動態生成放置區域 -->
+                </div>
+            </div>
+
+            <!-- 回饋區域 -->
+            <div id="feedbackArea" class="hidden bg-white/90 backdrop-blur-sm rounded-xl p-4 mb-4">
+                <div id="feedbackContent" class="text-center"></div>
+            </div>
+
+            <!-- 下一題按鈕 -->
+            <div class="text-center">
+                <button id="nextButton" onclick="nextQuestion()" class="hidden bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full transition-all duration-300">
+                    下一題 ➡️
+                </button>
+            </div>
+        </div>
+
+        <!-- 結果畫面 -->
+        <div id="resultScreen" class="hidden max-w-3xl mx-auto bg-white/90 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
+            <div class="text-center">
+                <div id="resultIcon" class="text-6xl mb-4"></div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">挑戰完成！</h2>
+                <div id="finalScore" class="text-3xl font-bold text-orange-600 mb-4"></div>
+                <div id="playerTitle" class="text-xl font-semibold text-blue-600 mb-6"></div>
+                <div id="resultSummary" class="text-gray-600 mb-6"></div>
+                
+                <div class="flex justify-center space-x-4">
+                    <button onclick="restartGame()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full transition-all duration-300">
+                        重新挑戰 🔄
+                    </button>
+                    <button onclick="saveResults()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-full transition-all duration-300">
+                        儲存成績 💾
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 遊戲狀態
+        let gameState = {
+            playerName: '',
+            currentLevel: 1,
+            score: 0,
+            answers: [],
+            startTime: null,
+            questions: [
+                {
+                    title: "SWOT 分析 - 蹦火仔文化活動",
+                    description: "請將以下因素分類到 SWOT 分析的正確象限中",
+                    categories: ["優勢 (Strengths)", "劣勢 (Weaknesses)", "機會 (Opportunities)", "威脅 (Threats)"],
+                    items: [
+                        { text: "🔥 獨特的傳統捕魚技術", category: "優勢 (Strengths)" },
+                        { text: "👴 漁民高齡化問題", category: "劣勢 (Weaknesses)" },
+                        { text: "📈 觀光客對文化體驗需求增加", category: "機會 (Opportunities)" },
+                        { text: "🌊 豐富的海洋文化底蘊", category: "優勢 (Strengths)" },
+                        { text: "👥 缺乏年輕傳承者", category: "劣勢 (Weaknesses)" },
+                        { text: "🏛️ 政府推動文化觀光政策", category: "機會 (Opportunities)" },
+                        { text: "🏭 工業化破壞海洋環境", category: "威脅 (Threats)" },
+                        { text: "🌐 其他地區文化觀光競爭", category: "威脅 (Threats)" },
+                        { text: "🌡️ 氣候變遷影響漁業", category: "威脅 (Threats)" }
+                    ]
+                },
+                {
+                    title: "STP 策略 - 市場區隔與定位",
+                    description: "請將以下策略要素分類到 STP 理論的正確階段",
+                    categories: ["市場區隔 (Segmentation)", "目標市場 (Targeting)", "市場定位 (Positioning)"],
+                    items: [
+                        { text: "🎭 文化愛好者族群", category: "市場區隔 (Segmentation)" },
+                        { text: "🔥 主打「台灣唯一火捕魚體驗」", category: "市場定位 (Positioning)" },
+                        { text: "💼 鎖定25-45歲中產階級", category: "目標市場 (Targeting)" },
+                        { text: "👨‍👩‍👧‍👦 親子家庭市場", category: "市場區隔 (Segmentation)" },
+                        { text: "⚖️ 強調「傳統與現代結合」", category: "市場定位 (Positioning)" },
+                        { text: "💰 選擇高消費力遊客", category: "目標市場 (Targeting)" }
+                    ]
+                },
+                {
+                    title: "4P 行銷組合 - 產品策略",
+                    description: "請將以下行銷要素分類到 4P 理論的正確類別",
+                    categories: ["產品 (Product)", "價格 (Price)", "通路 (Place)"],
+                    items: [
+                        { text: "🌙 蹦火仔夜間體驗行程", category: "產品 (Product)" },
+                        { text: "💵 成人票價 1200 元", category: "價格 (Price)" },
+                        { text: "🏢 透過旅行社銷售", category: "通路 (Place)" },
+                        { text: "🏛️ 漁村文化導覽服務", category: "產品 (Product)" },
+                        { text: "🐦 早鳥優惠 8 折", category: "價格 (Price)" },
+                        { text: "💻 官方網站線上預訂", category: "通路 (Place)" }
+                    ]
+                },
+                {
+                    title: "4P 行銷組合 - 推廣策略",
+                    description: "請將以下推廣活動分類到正確的行銷類別",
+                    categories: ["推廣 (Promotion)", "產品 (Product)", "價格 (Price)"],
+                    items: [
+                        { text: "📱 社群媒體影片宣傳", category: "推廣 (Promotion)" },
+                        { text: "🎁 蹦火仔文化紀念品", category: "產品 (Product)" },
+                        { text: "👥 團體票優惠方案", category: "價格 (Price)" },
+                        { text: "🌟 與網紅合作推廣", category: "推廣 (Promotion)" },
+                        { text: "🍽️ 漁夫料理體驗課程", category: "產品 (Product)" },
+                        { text: "🎓 學生票半價優惠", category: "價格 (Price)" }
+                    ]
+                },
+                {
+                    title: "綜合企劃整合",
+                    description: "請將以下企劃要素分類到正確的策略框架中",
+                    categories: ["SWOT分析", "STP策略", "4P行銷"],
+                    items: [
+                        { text: "⚔️ 分析競爭對手威脅", category: "SWOT分析" },
+                        { text: "👑 定位為頂級文化體驗", category: "STP策略" },
+                        { text: "📦 設計多元化產品組合", category: "4P行銷" },
+                        { text: "💪 評估內部資源優勢", category: "SWOT分析" },
+                        { text: "🎯 鎖定高端旅遊市場", category: "STP策略" },
+                        { text: "💲 制定彈性定價策略", category: "4P行銷" }
+                    ]
+                }
+            ]
+        };
+
+        // 開始遊戲
+        function startGame() {
+            const nameInput = document.getElementById('playerName');
+            if (!nameInput.value.trim()) {
+                alert('請輸入您的姓名！');
+                return;
+            }
+            
+            gameState.playerName = nameInput.value.trim();
+            gameState.startTime = new Date();
+            
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            document.getElementById('displayName').textContent = gameState.playerName;
+            
+            loadQuestion();
+        }
+
+        // 載入題目
+        function loadQuestion() {
+            const question = gameState.questions[gameState.currentLevel - 1];
+            
+            document.getElementById('currentLevel').textContent = gameState.currentLevel;
+            document.getElementById('questionTitle').textContent = question.title;
+            document.getElementById('questionDescription').textContent = question.description;
+            
+            // 生成拖曳卡片
+            const dragCardsContainer = document.getElementById('dragCards');
+            dragCardsContainer.innerHTML = '';
+            
+            // 隨機排序題目選項
+            const shuffledItems = [...question.items].sort(() => Math.random() - 0.5);
+            
+            shuffledItems.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'drag-card bg-gradient-to-r from-orange-400 to-orange-500 text-white px-4 py-3 rounded-lg shadow-lg';
+                card.draggable = true;
+                card.textContent = item.text;
+                card.dataset.category = item.category;
+                card.dataset.itemId = index;
+                
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+                
+                dragCardsContainer.appendChild(card);
+            });
+            
+            // 生成放置區域
+            const dropZonesContainer = document.getElementById('dropZones');
+            dropZonesContainer.innerHTML = '';
+            
+            question.categories.forEach(category => {
+                const zone = document.createElement('div');
+                zone.className = 'drop-zone bg-white/50 border-2 border-dashed border-gray-300 rounded-xl p-4 min-h-32';
+                zone.dataset.category = category;
+                
+                zone.innerHTML = `
+                    <h4 class="font-semibold text-gray-700 mb-3 text-center">${category}</h4>
+                    <div class="dropped-items space-y-2"></div>
+                `;
+                
+                zone.addEventListener('dragover', handleDragOver);
+                zone.addEventListener('drop', handleDrop);
+                zone.addEventListener('dragenter', handleDragEnter);
+                zone.addEventListener('dragleave', handleDragLeave);
+                
+                dropZonesContainer.appendChild(zone);
+            });
+            
+            // 隱藏回饋和下一題按鈕
+            document.getElementById('feedbackArea').classList.add('hidden');
+            document.getElementById('nextButton').classList.add('hidden');
+            
+            // 初始化進度條
+            initializeProgressBar();
+        }
+
+        // 拖曳事件處理
+        function handleDragStart(e) {
+            e.target.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', e.target.dataset.itemId);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            if (e.target.classList.contains('drop-zone')) {
+                e.target.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            if (e.target.classList.contains('drop-zone')) {
+                e.target.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const dropZone = e.target.closest('.drop-zone');
+            if (!dropZone) return;
+            
+            dropZone.classList.remove('drag-over');
+            
+            const itemId = e.dataTransfer.getData('text/plain');
+            const draggedCard = document.querySelector(`[data-item-id="${itemId}"]`);
+            
+            if (!draggedCard) return;
+            
+            const correctCategory = draggedCard.dataset.category;
+            const droppedCategory = dropZone.dataset.category;
+            const isCorrect = correctCategory === droppedCategory;
+            
+            // 移動卡片到放置區域
+            const droppedItems = dropZone.querySelector('.dropped-items');
+            const newCard = draggedCard.cloneNode(true);
+            newCard.draggable = false;
+            newCard.className = `drag-card ${isCorrect ? 'bg-green-500' : 'bg-red-500'} text-white px-3 py-2 rounded-lg text-sm`;
+            
+            droppedItems.appendChild(newCard);
+            draggedCard.remove();
+            
+            // 記錄答案
+            gameState.answers.push({
+                level: gameState.currentLevel,
+                question: document.getElementById('questionTitle').textContent,
+                item: draggedCard.textContent,
+                selectedCategory: droppedCategory,
+                correctCategory: correctCategory,
+                isCorrect: isCorrect
+            });
+            
+            // 更新分數並顯示動畫
+            if (isCorrect) {
+                gameState.score += 10;
+                document.getElementById('currentScore').textContent = gameState.score;
+                document.getElementById('currentScore').classList.add('score-counter');
+                
+                // 顯示加分動畫
+                showScorePopup('+10', 'text-green-500', e.clientX, e.clientY);
+                
+                // 顯示觀光客增加動畫
+                showTouristAnimation();
+                
+                // 更新進度條
+                updateProgressBar();
+                
+                setTimeout(() => {
+                    document.getElementById('currentScore').classList.remove('score-counter');
+                }, 500);
+            } else {
+                gameState.score = Math.max(0, gameState.score - 5);
+                document.getElementById('currentScore').textContent = gameState.score;
+                
+                // 顯示扣分動畫
+                showScorePopup('-5', 'text-red-500', e.clientX, e.clientY);
+                
+                // 顯示人口外流動畫
+                showExodusAnimation();
+                
+                // 更新進度條
+                updateProgressBar();
+            }
+            
+            // 檢查是否完成當前題目
+            checkLevelComplete();
+        }
+
+        // 顯示分數彈出動畫
+        function showScorePopup(text, colorClass, x, y) {
+            const popup = document.createElement('div');
+            popup.className = `score-popup ${colorClass}`;
+            popup.textContent = text;
+            popup.style.left = x + 'px';
+            popup.style.top = y + 'px';
+            
+            document.body.appendChild(popup);
+            
+            setTimeout(() => {
+                popup.remove();
+            }, 2000);
+        }
+
+        // 顯示觀光客增加動畫
+        function showTouristAnimation() {
+            const animation = document.createElement('div');
+            animation.className = 'local-animation success';
+            
+            animation.innerHTML = `
+                <div class="animation-icons">🚶‍♂️🚶‍♀️👨‍👩‍👧‍👦📷</div>
+                <div class="animation-text">觀光客湧入！</div>
+                <div class="animation-text" style="font-size: 14px;">蹦火仔文化吸引更多遊客</div>
+            `;
+            
+            document.body.appendChild(animation);
+            
+            setTimeout(() => {
+                animation.remove();
+            }, 2000);
+        }
+
+        // 顯示人口外流動畫
+        function showExodusAnimation() {
+            const animation = document.createElement('div');
+            animation.className = 'local-animation failure';
+            
+            animation.innerHTML = `
+                <div class="animation-icons">👨‍💼👩‍💼🚶‍♂️💼</div>
+                <div class="animation-text">人口外流！</div>
+                <div class="animation-text" style="font-size: 14px;">年輕人離開漁村尋找工作</div>
+            `;
+            
+            document.body.appendChild(animation);
+            
+            setTimeout(() => {
+                animation.remove();
+            }, 2000);
+        }
+
+        // 顯示慶祝煙火動畫
+        function showCelebrationFireworks() {
+            const fireworks = document.createElement('div');
+            fireworks.className = 'celebration-fireworks';
+            fireworks.textContent = '🎆🎇✨';
+            
+            document.body.appendChild(fireworks);
+            
+            setTimeout(() => {
+                fireworks.remove();
+            }, 2000);
+        }
+
+        // 更新進度條
+        function updateProgressBar() {
+            const maxScore = gameState.questions.length * 9 * 10; // 假設每關最多9題，每題10分
+            const currentProgress = Math.min((gameState.score / maxScore) * 100, 100);
+            
+            const progressFill = document.getElementById('progressFill');
+            const progressPercentage = document.getElementById('progressPercentage');
+            const progressStatus = document.getElementById('progressStatus');
+            
+            progressFill.style.width = currentProgress + '%';
+            progressPercentage.textContent = Math.round(currentProgress) + '%';
+            
+            // 更新狀態文字和顏色
+            let statusText = '';
+            let statusClass = '';
+            
+            if (currentProgress >= 80) {
+                statusText = '🎉 漁村振興成功！';
+                statusClass = 'status-excellent';
+            } else if (currentProgress >= 60) {
+                statusText = '🌟 文化蓬勃發展';
+                statusClass = 'status-good';
+            } else if (currentProgress >= 40) {
+                statusText = '⚠️ 需要更多努力';
+                statusClass = 'status-warning';
+            } else if (currentProgress >= 20) {
+                statusText = '🚨 文化面臨危機';
+                statusClass = 'status-danger';
+            } else {
+                statusText = '💀 文化瀕臨消失';
+                statusClass = 'status-critical';
+            }
+            
+            progressStatus.textContent = statusText;
+            progressStatus.className = `progress-status ${statusClass}`;
+        }
+
+        // 初始化進度條
+        function initializeProgressBar() {
+            updateProgressBar();
+        }
+
+        // 檢查關卡是否完成
+        function checkLevelComplete() {
+            const remainingCards = document.querySelectorAll('#dragCards .drag-card');
+            
+            if (remainingCards.length === 0) {
+                // 顯示慶祝動畫
+                showCelebrationFireworks();
+                
+                // 顯示回饋
+                showFeedback();
+                document.getElementById('nextButton').classList.remove('hidden');
+            }
+        }
+
+        // 顯示回饋
+        function showFeedback() {
+            const currentAnswers = gameState.answers.filter(a => a.level === gameState.currentLevel);
+            const correctCount = currentAnswers.filter(a => a.isCorrect).length;
+            const totalCount = currentAnswers.length;
+            
+            let feedbackText = '';
+            let feedbackClass = '';
+            
+            if (correctCount === totalCount) {
+                feedbackText = `🎉 太棒了！您完全掌握了這個理論概念！全部 ${totalCount} 題都答對了！`;
+                feedbackClass = 'text-green-600 bg-green-50';
+            } else if (correctCount >= totalCount * 0.7) {
+                feedbackText = `👍 很好！您答對了 ${correctCount}/${totalCount} 題，對理論有不錯的理解！`;
+                feedbackClass = 'text-blue-600 bg-blue-50';
+            } else {
+                feedbackText = `💪 繼續努力！您答對了 ${correctCount}/${totalCount} 題，建議複習相關理論概念。`;
+                feedbackClass = 'text-orange-600 bg-orange-50';
+            }
+            
+            const feedbackArea = document.getElementById('feedbackArea');
+            const feedbackContent = document.getElementById('feedbackContent');
+            
+            feedbackContent.innerHTML = `
+                <div class="p-4 rounded-lg ${feedbackClass}">
+                    <p class="font-semibold">${feedbackText}</p>
+                </div>
+            `;
+            
+            feedbackArea.classList.remove('hidden');
+            feedbackArea.classList.add('success-animation');
+            
+            setTimeout(() => {
+                feedbackArea.classList.remove('success-animation');
+            }, 600);
+        }
+
+        // 下一題
+        function nextQuestion() {
+            if (gameState.currentLevel < gameState.questions.length) {
+                gameState.currentLevel++;
+                loadQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        // 顯示結果
+        function showResults() {
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.remove('hidden');
+            
+            const totalQuestions = gameState.answers.length;
+            const correctAnswers = gameState.answers.filter(a => a.isCorrect).length;
+            const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+            
+            // 計算稱號 - 5個級別評價
+            let title = '';
+            let icon = '';
+            let description = '';
+            
+            if (percentage >= 90) {
+                title = '蹦火仔文化拯救英雄';
+                icon = '🏆';
+                description = '完美掌握企劃理論，成功拯救漁村文化！';
+            } else if (percentage >= 75) {
+                title = '地方產業企劃大師';
+                icon = '🥇';
+                description = '優秀的企劃能力，漁村文化重現生機！';
+            } else if (percentage >= 60) {
+                title = '文化振興策劃師';
+                icon = '🌟';
+                description = '具備良好的企劃基礎，持續努力可達更高成就！';
+            } else if (percentage >= 40) {
+                title = '休閒創意達人';
+                icon = '💡';
+                description = '有創意想法，但需要加強理論應用能力。';
+            } else {
+                title = '文化企劃新手';
+                icon = '🌱';
+                description = '剛起步的企劃師，建議多學習相關理論知識。';
+            }
+            
+            document.getElementById('resultIcon').textContent = icon;
+            document.getElementById('finalScore').textContent = `${gameState.score} 分 (${percentage}%)`;
+            document.getElementById('playerTitle').textContent = title;
+            document.getElementById('resultSummary').innerHTML = `
+                <div class="mb-4">
+                    <p class="text-lg font-semibold text-gray-700 mb-2">${description}</p>
+                    <p class="text-gray-600">您總共答對了 ${correctAnswers}/${totalQuestions} 題</p>
+                </div>
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <h4 class="font-bold text-blue-800 mb-2">🎯 成就解鎖條件：</h4>
+                    <div class="text-sm text-gray-600 space-y-1">
+                        <p>🏆 拯救英雄：90%以上 (${percentage >= 90 ? '✅ 已達成' : '❌ 未達成'})</p>
+                        <p>🥇 企劃大師：75-89% (${percentage >= 75 && percentage < 90 ? '✅ 已達成' : '❌ 未達成'})</p>
+                        <p>🌟 策劃師：60-74% (${percentage >= 60 && percentage < 75 ? '✅ 已達成' : '❌ 未達成'})</p>
+                        <p>💡 創意達人：40-59% (${percentage >= 40 && percentage < 60 ? '✅ 已達成' : '❌ 未達成'})</p>
+                        <p>🌱 企劃新手：40%以下 (${percentage < 40 ? '✅ 已達成' : '❌ 未達成'})</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 重新開始遊戲
+        function restartGame() {
+            gameState = {
+                playerName: gameState.playerName,
+                currentLevel: 1,
+                score: 0,
+                answers: [],
+                startTime: new Date(),
+                questions: gameState.questions
+            };
+            
+            document.getElementById('resultScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            document.getElementById('currentScore').textContent = '0';
+            
+            // 重置進度條
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressPercentage').textContent = '0%';
+            document.getElementById('progressStatus').textContent = '🚨 文化瀕臨消失';
+            document.getElementById('progressStatus').className = 'progress-status status-critical';
+            
+            loadQuestion();
+        }
+
+        // 儲存結果
+        function saveResults() {
+            const endTime = new Date();
+            const playTime = Math.round((endTime - gameState.startTime) / 1000);
+            
+            const resultData = {
+                timestamp: endTime.toLocaleString('zh-TW'),
+                playerName: gameState.playerName,
+                score: gameState.score,
+                playTime: playTime,
+                answers: gameState.answers
+            };
+            
+            console.log('發送的資料:', JSON.stringify(resultData, null, 2)); // 格式化日誌以便閱讀
+            
+            // 發送資料到 Apps Script
+            fetch('https://script.google.com/macros/s/AKfycbx-8zPxsxHh5-GMKzS9TAnj4Lv424zGULTIx0rJveMHO2Fqth_pSpVCl5GgOyEg5gEt/exec', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(resultData),
+                mode: 'cors', // 明確指定 CORS 模式
+                credentials: 'omit' // 不包含認證資訊
+            })
+            .then(response => {
+                console.log('伺服器回應狀態:', response.status, response.statusText);
+                if (!response.ok) {
+                    throw new Error(`HTTP 錯誤！狀態: ${response.status} ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('伺服器回應內容:', data);
+                if (data.status === 'success') {
+                    alert(`成績已同步到 Google 試算表！\n玩家：${gameState.playerName}\n分數：${gameState.score}\n遊戲時間：${playTime}秒`);
+                } else {
+                    alert(`同步失敗：${data.message || '伺服器未返回成功狀態'}\n請檢查 Apps Script 日誌或 Web App 配置。`);
+                }
+            })
+            .catch(error => {
+                console.error('同步錯誤:', error);
+                alert(`發生錯誤，無法同步到試算表：${error.message}\n請檢查控制台日誌以獲取更多資訊。`);
+            });
+        }
+
+        // 初始化遊戲
+        document.addEventListener('DOMContentLoaded', function() {
+            // 添加魚群動畫
+            setInterval(() => {
+                if (Math.random() < 0.3) {
+                    const fish = document.createElement('div');
+                    fish.className = 'fish';
+                    fish.style.top = Math.random() * 60 + 40 + '%';
+                    fish.style.animationDelay = '0s';
+                    fish.textContent = ['🐟', '🐠', '🐡'][Math.floor(Math.random() * 3)];
+                    document.body.appendChild(fish);
+                    
+                    setTimeout(() => {
+                        fish.remove();
+                    }, 4000);
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
